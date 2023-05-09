@@ -1,0 +1,103 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Introduction
+This R Notebook contains a code written in R to calulate the principle components of the presidential election data. This R Notebook uses several packages, including dplyr, tidyr, readr, ggplot2, ggbiplot, and usmap to load, process, analyze, and visualize data on U.S. presidential elections from 2000 to 2020. The script performs several data transformation and stigmatization steps, performs a principal component analysis, and generates several plots, including a histogram and a biplot of the principal components, and a map of the U.S. colored by Republican vote estimates for each county.
+
+
+Loading Packages
+We begin by loading several packages used throughout the script, including:
+dplyr: used for data manipulation and summarization
+tidyr: used for data reshaping
+readr: used for reading data files
+ggplot2: used for data visualization
+ggbiplot: used for creating biplots
+usmap: used for creating U.S. maps
+
+```{r}
+# Load required packages
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(ggbiplot)
+library(usmap)
+library(plyr)
+```
+
+
+Loading Data
+The script loads the data from a CSV file using the read_csv function from the readr package. The data is then filtered to only include rows where the party is Republican and the total number of votes is greater than zero. The script then creates a new column, ratio, which is the candidate votes divided by the total votes. The data is then reshaped using the pivot_wider function from the tidyr package to create separate columns for each year. Finally, the column names are modified to use "county_fips" instead of "county_county_fips".
+
+```{r}
+# Load data
+pre <- read_csv(file = "countypres.csv") %>%
+  filter(party == "REPUBLICAN") %>%
+  filter(totalvotes > 0) %>%
+  mutate(ratio = candidatevotes/ totalvotes) %>%
+  pivot_wider(names_from = year, values_from = ratio) %>%
+  rename_with(~ "fips", .cols = "county_fips")
+```
+
+
+Summarizing Data
+The script then summarizes the data by selecting the county_fips column and columns for each year from 2000 to 2020, grouping by county_fips, and taking the sum of each column. This results in a data frame where each row represents a county and the columns represent the total number of votes for Republican candidates in each year.
+
+```{r}
+# Summarize data
+pre <- pre %>%
+  dplyr::select(fips, "2000":"2020") %>%
+  group_by(fips) %>%
+  dplyr::summarise_all(sum, na.rm = T)
+
+pre %>%
+  gather("key","value", "2000":"2020") %>%
+  ggplot(aes(x = key, y = value, group = fips)) +
+  geom_line(alpha = 0.1) +
+  theme_minimal()
+```
+
+
+Principal Component Analysis
+The script performs a principal component analysis (PCA) on the summarized data using the prcomp function from the stats package. The PCA is performed on all columns except for the county_fips column. The resulting PCA object is printed using the summary and str functions.
+
+```{r}
+# Perform PCA
+pre.pca <- prcomp(pre[,-1], center = TRUE,scale. = TRUE)
+```
+
+
+Plotting Principal Components
+The script then creates a histogram of the first principal component (PC1) using the ggplot function from the ggplot2 package. The script first converts the PC1 column of the PCA object to a data frame and then uses ggplot to create a histogram.The script then creates a biplot of the first two principal components using the ggbiplot function from the ggbiplot package. The biplot shows how the counties are distributed in the space defined by the first two principal components. The script uses the ggbiplot function to create the biplot.
+
+```{r}
+# Plot PC1 histogram
+pre.pca$x %>% 
+  as.data.frame() %>% 
+  ggplot(aes(x=PC1))+
+  geom_histogram()+
+  theme_minimal()
+ggbiplot(pre.pca)
+```
+
+
+Plotting Map
+Finally, the script creates a map of the U.S. colored by Republican vote estimates for each county. The script uses the plot_usmap function from the usmap package to create a blank map of the U.S. The script then uses the plot_usmap function again to create a map with the vote estimates for each county. The script uses the cbind function to combine the summarized data with the principal components from the PCA object. The resulting data frame is then used as input for the plot_usmap function. The resulting map is colored using a continuous color scale from blue to red and labeled with a colorbar showing the estimated number of Republican votes for each county. The plot is titled "Presidential Election Data of Republicans from 2000 to 2020".
+
+```{r}
+# Plot county vote estimates
+plot_usmap(regions = "counties") + 
+  labs(title = "U.S. counties",
+       subtitle = "This is a blank map of the United States.") + 
+  theme(panel.background=element_blank())
+
+pre.pca$rotation[,1]
+
+plot_usmap(data = cbind(pre, pre.pca$rotation[,1]), values = "pre.pca$rotation[, 1]", color = "white") + 
+  scale_fill_gradientn(colors = rainbow(7), name = "Republican Vote Estimate", label = scales::comma) +
+  labs(title = "United States", subtitle = "Presidential Election Data of Republicans from 2000 to 2020") +
+  theme(legend.position = "right")
+```
+

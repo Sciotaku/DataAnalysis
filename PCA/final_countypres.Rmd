@@ -1,0 +1,82 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Here's a brief summary of the methodology used in the code:
+
+Load the required packages: The packages dplyr, tidyr, readr, ggplot2, ggbiplot, usmap, and data.table are loaded.
+
+Load and clean the data: The "countypres.csv" file is read in using the read_csv function from readr. Rows with party other than "REPUBLICAN" and totalvotes less than or equal to 0 are removed. The data is then pivoted wider so that the different election years are represented as columns. The county_fips column is renamed as fips.
+
+Summarize the data: The data is summarized by county by selecting the fips column and columns representing the election years 2000 to 2020. The values for each county are summed across election years.
+
+Visualize the data: The summarized data is gathered so that the election year columns become rows. A ggplot is created with x-axis representing the election year, y-axis representing the vote ratio for each county, and each line representing a county.
+
+Perform PCA: The prcomp function from data.table is used to perform Principal Component Analysis on the summarized data with scaling.
+
+Visualize the PCA results: Summary statistics and structure of the PCA object are viewed using the summary and str functions, respectively. The ggbiplot function is used to create a biplot of the first two principal components.
+
+Plot county vote estimates on a US map: The usmap package is used to create a blank map of US counties. The first principal component is added to the summarized data using cbind. The plot_usmap function is used to create a choropleth map of the county vote estimates with the first principal component as the variable being mapped. The map is color-coded using a gradient fill, and the title and subtitle are added using labs.
+
+
+```{r}
+# Load required packages
+# Load required packages
+library(dplyr)
+library(tidyr)
+library(readr)
+library(ggplot2)
+library(RColorBrewer)
+library(data.table)
+library(ggbiplot)
+library(usmap)
+
+# Load data
+pre <- read_csv(file = "countypres.csv") %>%
+  filter(party == "REPUBLICAN") %>%
+  filter(totalvotes > 0) %>%
+  mutate(ratio = candidatevotes/ totalvotes) %>%
+  pivot_wider(names_from = year, values_from = ratio) %>%
+  rename_with(~ "fips", .cols = "county_fips")
+
+# Summarize data
+pre <- pre %>%
+  dplyr::select(fips, "2000":"2020") %>%
+  group_by(fips) %>%
+  dplyr::summarise_all(sum, na.rm = T)
+
+pre %>%
+  gather("key","value", "2000":"2020") %>%
+  ggplot(aes(x = key, y = value, group = fips)) +
+  geom_line(alpha = 0.1) +
+  theme_minimal()
+
+# Perform PCA
+pre.pca <- prcomp(transpose(pre[,-1]), scale. = TRUE)
+
+summary(pre.pca)
+str(pre.pca)
+
+ggbiplot(pre.pca)
+
+# Generate color palette
+colors <- brewer.pal(n = 6, name = "Paired")
+
+# Plot county vote estimates
+# plot_usmap(data = cbind(pre, pre.pca$rotation[,1]), values = "pre.pca$rotation[, 1]", color = "white") + 
+#  scale_fill_gradientn(colors = colors, name = "Republican Vote Estimate", label = scales::comma) +
+#   labs(title = "United States", subtitle = "Presidential Election Data of Republicans from 2000 to 2020") +
+#   theme(legend.position = "right")
+
+plot_usmap(data = cbind(pre, pre.pca$rotation[,1]), 
+           values = "pre.pca$rotation[, 1]", 
+           color = "white") + 
+  scale_fill_gradientn(colors = colors, name = "Republican Vote Estimate", 
+                       label = scales::comma) +
+  labs(title = "United States", 
+       subtitle = "Presidential Election Data of Republicans from 2000 to 2020") +
+  theme(legend.position = "right")
+
+```
+
