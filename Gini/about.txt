@@ -1,1 +1,2 @@
+This file includes all the codes to calculate the Gini Coefficient of the given presidential election data of each counties from 2000 to 2020.
 
