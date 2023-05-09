@@ -1,1 +1,1 @@
-
+This folder includes all the codes to do principal component analysis of presidential election data of each counties from 2000 to 2020 and create a visualization of the results.
