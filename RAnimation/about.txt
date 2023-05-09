@@ -1,1 +1,1 @@
-
+This folder includes codes to create cool R animations of different data sets. Different R packages such as ggplot, gganimate, etc. has been used.
