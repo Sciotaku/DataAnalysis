@@ -1,0 +1,53 @@
+data <- read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Political Polarization/countypres.csv")
+
+# calculate the total number of votes in each county
+county_totals <- aggregate(data$totalvotes, by = list(data$county_fips), sum)
+
+# calculate the number of votes for each party in each county
+county_party_totals <- aggregate(data$candidatevotes, by = list(data$county_fips, data$party), sum)
+
+# pivot the data so that each row represents a county and each column represents a party
+county_party_matrix <- reshape(county_party_totals, idvar = "Group.1", timevar = "Group.2", direction = "wide")
+
+# replace any missing values with 0
+county_party_matrix[is.na(county_party_matrix)] <- 0
+
+# calculate the total number of votes in each county
+county_totals <- aggregate(data$totalvotes, by = list(data$county_fips), sum)
+
+# calculate the proportion of votes for each party in each county
+county_party_proportions <- county_party_matrix[, -1] / matrix(county_totals$x, ncol = ncol(county_party_matrix) - 1, nrow = nrow(county_party_matrix), byrow = TRUE)
+
+# calculate the Gini coefficient for each county
+gini_coefficients <- apply(county_party_proportions, 1, function(x) {
+  n <- length(x)
+  sorted_x <- sort(x)
+  cum_sum_x <- cumsum(sorted_x)
+  sum_x <- sum(sorted_x)
+  B <- cum_sum_x / sum_x
+  G <- (n + 1 - 2 * sum(B)) / n
+  return(G)
+})
+
+# create a data frame with the results
+results <- data.frame(county_fips = county_party_matrix[, 1], gini_coefficient = gini_coefficients)
+
+results <- rename(results, fips = county_fips)
+
+# Generate color palette
+library(RColorBrewer)
+colors <- brewer.pal(n = 12, name = "Paired")
+
+plot_usmap(data = results,
+           values = "gini_coefficient",
+           color = "white") +
+  scale_fill_gradientn(colors = colors,
+                       name = "Political Polarization",
+                       label = scales::comma) +
+  labs(title = "United States",
+       subtitle = "Presidential Election Data from 2000 to 2020") +
+  theme(legend.position = "right")
+
+
+
+

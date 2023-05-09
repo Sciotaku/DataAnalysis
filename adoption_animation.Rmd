@@ -1,0 +1,278 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+r_PV Geometrical Animation
+
+```{r}
+library(ggplot2)
+library(gganimate)
+library(gifski)
+library(dplyr)
+library(transformr)
+library(maps)
+library(sf)
+
+data = rahul
+
+data <- st_as_sf(data, wkt="geometry")
+
+data <- data %>%
+  group_by(Town, Year) %>%
+  summarize(Total_Number = sum(Number), r_PV = mean(r_PV), geometry = st_combine(geometry)) %>%
+  ungroup()
+
+ggplot(data) +
+  geom_sf(aes(fill = r_PV), color = NA) +
+  scale_fill_gradient(low = "blue", high = "red") +
+  labs(title = "Total Number of Towns", x = "Longitude", y = "Latitude") +
+  transition_time(Year) + 
+  labs(title = "Year: {frame_time}")
+```
+
+r_PV Point Animation
+
+```{r}
+library(ggplot2)
+library(gganimate)
+library(gifski)
+library(dplyr)
+library(transformr)
+library(maps)
+library(sf)
+
+# Load the data
+data = read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Adoption Animation/r_PV_modified.csv")
+
+class(data)
+
+df = data
+
+# Convert the data to an sf object and calculate the centroids
+d <- df %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>%
+  st_centroid()
+
+# Extract the 'Year' and 'r_PV' columns into separate variables
+year <- as.numeric(as.character(d$Year))
+r_pv <- d$r_PV
+
+# Add the 'Year' and 'r_PV' variables to the sf object as attributes
+d <- st_as_sf(d,  crs = 4326, agr = "constant")
+d$Year <- year
+d$r_PV <- r_pv
+
+# Create a ggplot object with the sf object as the data source
+p <- ggplot() +
+  geom_sf(data = d, aes(size = r_PV)) +
+  scale_size_continuous(range = c(1, 10)) +
+  transition_time(Year) +
+  labs(title = "Year: {frame_time}")
+
+# Animate the ggplot object and save as a gif file
+animate(p, fps = 100, width = 800, height = 600)
+
+```
+
+
+
+r_PV New Animation
+
+```{r}
+library(ggplot2)
+library(gganimate)
+library(gifski)
+library(dplyr)
+library(transformr)
+library(maps)
+library(sf)
+
+data = rahul
+
+df_new = read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Adoption Animation/newdata.csv")
+
+# Convert the geometry column to an sf object
+data_sf <- st_as_sf(data, wkt = "geometry")
+
+# Extract the centroids of each town
+centroids <- st_centroid(data_sf)
+
+# Extract the centroids of each town and combine with the data
+centroids_df <- st_centroid(data_sf) %>% st_coordinates() %>% as.data.frame()
+centroids_df$r_PV <- data$r_PV
+year <- as.numeric(as.character(d$Year))
+
+p <- ggplot() +
+  geom_sf(data = data_sf %>%
+            mutate(Year = as.integer(Year)), fill = "white", color = "black") +
+  geom_point(data = na.omit(centroids_df), aes(x = X, y = Y, size = r_PV), color = "red") +
+  scale_size_continuous(range = c(1, 10)) +
+  transition_time(Year) +
+  labs(title = "Year: {frame_time}") +
+  coord_sf(default_crs = st_crs(data_sf))
+
+# Animate the ggplot object and save as a gif file
+animate(p, fps = 10, width = 800, height = 600)
+```
+
+
+PV_Final
+
+```{r}
+library(ggplot2)
+library(dplyr)
+library(sf)
+library(animation)
+
+# Load the data
+rates <- read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Adoption Animation/PV_final.csv")
+towns <- rahul
+
+# Merge the data
+merged_data <- left_join(towns, rates, by = c("Town" = "Town", "Year" = "Year"))
+
+# Create a logical matrix of missing values
+missing_values <- is.na(merged_data)
+
+# Count the number of missing values in each row
+missing_counts <- rowSums(missing_values)
+
+# Subset the merged data to only keep rows with no missing values
+merged_data <- merged_data[missing_counts == 0, ]
+
+# Convert the data to an sf object and calculate the centroids
+d <- merged_data %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>%
+  st_centroid()
+
+# Extract the 'Year' and 'r_PV' columns into separate variables
+year <- as.numeric(as.character(d$Year))
+rate <- d$Rate
+
+# Add the 'Year' and 'r_PV' variables to the sf object as attributes
+d <- st_as_sf(d,  crs = 4326, agr = "constant")
+d$Year <- year
+d$rate <- rate
+
+# Create a ggplot object with the sf object as the data source
+p <- ggplot() +
+  geom_sf(data = d, aes(size = r_PV)) +
+  scale_size_continuous(range = c(1, 10)) +
+  transition_time(Year) +
+  labs(title = "Year: {frame_time}")
+
+# Animate the ggplot object and save as a gif file
+animate(p, fps = 100, width = 800, height = 600)
+
+```
+
+
+Pump_final
+
+```{r}
+# Read in the two data frames
+df1 <- read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Adoption Animation/r_PV_modified.csv")
+df2 <- read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Adoption Animation/Pump_final.csv")
+
+# Merge the two data frames
+merged_df <- merge(df1, df2, by = c("Town", "Year"))
+
+library(dplyr)
+
+# Join the two data frames
+merged_df <- left_join(df2, df1[,c("Town", "Year", "Latitude", "Longitude")], by = c("Town", "Year"))
+
+library(tidyr)
+
+# fill missing latitude and longitude with the values from the previous year
+df2_filled <- fill(merged_df, Latitude, Longitude)
+
+data = df2_filled
+
+class(data)
+
+d <- data
+
+head(d)
+
+# Convert the data to an sf object and calculate the centroids
+d <- d %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>%
+  st_centroid()
+
+# Extract the 'Year' and 'Rate' columns into separate variables
+year <- as.numeric(as.character(d$Year))
+rate <- d$Rate
+
+# Add the 'Year' and 'Rate' variables to the sf object as attributes
+d <- st_as_sf(d,  crs = 4326, agr = "constant")
+d$Year <- year
+d$rate <- rate
+
+# Create a ggplot object with the sf object as the data source
+p <- ggplot() +
+  geom_sf(data = d, aes(size = rate)) +
+  scale_size_continuous(range = c(1, 10)) +
+  transition_time(Year) +
+  labs(title = "Year: {frame_time}")
+
+# Animate the ggplot object and save as a gif file
+animate(p, fps = 100, width = 800, height = 600)
+
+```
+
+
+EV_final
+
+```{r}
+# Read in the two data frames
+df1 <- read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Adoption Animation/r_PV_modified.csv")
+df2 <- read.csv("/Users/rahulgupta/Dropbox (Dartmouth College)/Mac/Documents/Dartmouth/FYREE/Adoption Animation/EV_final.csv")
+
+# Merge the two data frames
+merged_df <- merge(df1, df2, by = c("Town", "Year"))
+
+library(dplyr)
+
+# Join the two data frames
+merged_df <- left_join(df2, df1[,c("Town", "Year", "Latitude", "Longitude")], by = c("Town", "Year"))
+
+library(tidyr)
+
+# fill missing latitude and longitude with the values from the previous year
+df2_filled <- fill(merged_df, Latitude, Longitude)
+
+data = df2_filled
+
+class(data)
+
+d <- data
+
+head(d)
+
+# Convert the data to an sf object and calculate the centroids
+d <- d %>%
+  st_as_sf(coords = c("Longitude", "Latitude"), crs = 4326) %>%
+  st_centroid()
+
+# Extract the 'Year' and 'Rate' columns into separate variables
+year <- as.numeric(as.character(d$Year))
+rate <- d$Rate
+
+# Add the 'Year' and 'Rate' variables to the sf object as attributes
+d <- st_as_sf(d,  crs = 4326, agr = "constant")
+d$Year <- year
+d$rate <- rate
+
+# Create a ggplot object with the sf object as the data source
+p <- ggplot() +
+  geom_sf(data = d, aes(size = rate)) +
+  scale_size_continuous(range = c(1, 10)) +
+  transition_time(Year) +
+  labs(title = "Year: {frame_time}")
+
+# Animate the ggplot object and save as a gif file
+animate(p, fps = 100, width = 800, height = 600)
+```
+
